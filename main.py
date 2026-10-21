@@ -58,18 +58,13 @@ def apply_style(root):
     style.configure("TButton", font=(FONT, FONT_SIZE), padding=(5, 5))
     style.configure("TEntry", font=(FONT, FONT_SIZE), padding=5)
     style.configure("TCombobox", font=(FONT, FONT_SIZE), padding=5)
-
     style.configure("Treeview", font=(FONT, FONT_SIZE), rowheight=30)
     style.configure("Treeview.Heading", font=(FONT, FONT_SIZE, "bold"))
-
     style.configure("TNotebook.Tab", font=(FONT, FONT_SIZE), padding=(30, 5))
-
     style.configure("Heading.TLabel", font=(FONT, 14, "bold"))
     style.configure("Total.TLabel", font=(FONT, FONT_SIZE, "bold"))
 
 def treeview_with_scroll(parent, keys, labels, height=18):
-    if len(keys) != len(labels):
-        raise ValueError(f"keys ({len(keys)}) и labels ({len(labels)}) разной длины")
     frame = ttk.Frame(parent)
     tree = ttk.Treeview(frame, columns=keys, show="headings", height=height)
     scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
@@ -131,12 +126,8 @@ class BaseToplevel(Toplevel):
 
             if field_type == "combo":
                 widget = self._build_combo(field)
-            elif field_type == "date":
-                widget = self._build_date(field)
-            elif field_type == "datetime":
-                widget = self._build_datetime(field)
             else:
-                widget = ttk.Entry(self.entries_frame, width=30)
+                widget = self._build_entry(field)
 
             widget.grid(row=i, column=1, sticky=EW, pady=4)
             self.entries[attr] = widget
@@ -160,13 +151,23 @@ class BaseToplevel(Toplevel):
 
         return combo
 
-    def _build_date(self, field):
+    def _build_entry(self, field):
         entry = ttk.Entry(self.entries_frame, width=30)
+
+        if field.get("type") == "number":
+            entry.configure(validate="key", validatecommand=(self.register(self._only_number), "%P"))
         return entry
 
-    def _build_datetime(self, field):
-        entry = ttk.Entry(self.entries_frame, width=30)
-        return entry
+    def _only_number(self, value):
+        if value == "":
+            return True
+        if value == "-":
+            return False
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
 
     def collect_value(self, field):
         attr = field["attr"]
@@ -314,17 +315,10 @@ class BaseTab(ttk.Frame):
             self.tree.insert("", "end", values=[row[key] or "—" for key in keys])
 
     def open_create(self):
-        if not self.toplevel_class:
-            messagebox.showinfo("В разработке", "...", parent=self)
-            return
         dlg = self.toplevel_class(self.winfo_toplevel(), self.db, record=None, on_success=self.load_data)
         self.wait_window(dlg)
 
     def open_edit(self):
-        if not self.toplevel_class or not self.pk_column:
-            messagebox.showinfo("В разработке", "...", parent=self)
-            return
-
         record = self._get_selected_record()
         if not record:
             return
@@ -333,10 +327,6 @@ class BaseTab(ttk.Frame):
         self.wait_window(dlg)
 
     def open_delete(self):
-        if not self.pk_column:
-            messagebox.showinfo("В разработке", "...", parent=self)
-            return
-
         sel = self.tree.selection()
         if not sel:
             messagebox.showwarning("Внимание", "Выберите строку", parent=self)
@@ -378,7 +368,7 @@ class AppointmentsToplevel(BaseToplevel):
         {"label": "Клиент",                  "attr": "client_id",        "type": "combo",    "source": "get_clients", "display": "client",   "required": True},
         {"label": "Питомец",                 "attr": "pet_id",           "type": "combo",    "source": "get_pets",    "display": "name",     "required": True},
         {"label": "Врач",                    "attr": "employee_id",      "type": "combo",    "source": "get_doctors", "display": "employee", "required": True},
-        {"label": "Дата (ДД.ММ.ГГГГ ЧЧ:ММ)", "attr": "appointment_date", "type": "datetime", "required": True},
+        {"label": "Дата (ДД.ММ.ГГГГ ЧЧ:ММ)", "attr": "appointment_date", "type": "datetime", "required": True}
     ]
 
 class AppointmentServicesToplevel(BaseListToplevel):
@@ -718,11 +708,11 @@ class MedicalRecordToplevel(BaseToplevel):
     pk_column = "record_id"
     fields = [
         {"label": "Причина обращения", "attr": "reason",          "required": False},
-        {"label": "Диагноз",            "attr": "diagnosis",       "required": True},
-        {"label": "Температура (°C)",   "attr": "temperature",     "required": False},
-        {"label": "Вес (кг)",           "attr": "weight",          "required": False},
-        {"label": "Рекомендации",       "attr": "recommendations", "required": False},
-        {"label": "Описание",           "attr": "description",     "required": False},
+        {"label": "Диагноз",           "attr": "diagnosis",       "required": True},
+        {"label": "Температура (°C)",  "attr": "temperature",     "type": "number", "required": False},
+        {"label": "Вес (кг)",          "attr": "weight",          "type": "number", "required": False},
+        {"label": "Рекомендации",      "attr": "recommendations", "required": False},
+        {"label": "Описание",          "attr": "description",     "required": False},
     ]
 
     def __init__(self, parent, db, appointment_id, record=None, on_success=None):
@@ -1016,7 +1006,7 @@ class ServicesToplevel(BaseToplevel):
     table_name = "Services"
     fields = [
         {"label": "Название", "attr": "name",  "required": True},
-        {"label": "Цена",     "attr": "price", "required": True},
+        {"label": "Цена",     "attr": "price", "type": "number", "required": True},
     ]
 
 class MedicinesToplevel(BaseToplevel):
@@ -1024,10 +1014,10 @@ class MedicinesToplevel(BaseToplevel):
     table_name = "Medicines"
     fields = [
         {"label": "Название",          "attr": "name",        "required": True},
-        {"label": "Цена",              "attr": "price",       "required": True},
+        {"label": "Цена",              "attr": "price",       "type": "number", "required": True},
         {"label": "Поставщик",         "attr": "supplier_id", "type": "combo", "source": "get_suppliers", "display": "company_name", "required": False},
         {"label": "Единица измерения", "attr": "unit",        "required": False},
-        {"label": "Остаток",           "attr": "stock",       "required": False},
+        {"label": "Остаток",           "attr": "stock", "type": "number", "required": False},
     ]
 
 class AppointmentsTab(BaseTab):
@@ -1305,6 +1295,12 @@ class ReportsTab(ttk.Frame):
             "keys":   ["payment_id", "appointment_date", "client", "amount"],
             "labels": ["ID", "Дата приёма", "Клиент", "Сумма"],
         },
+        "stock": {
+            "title": "Остатки медикаментов",
+            "method": "report_stock_balances",
+            "keys":   ["name", "supplier", "stock", "unit"],
+            "labels": ["Медикамент", "Поставщик", "Остаток", "Ед. изм."],
+        },
     }
 
     def __init__(self, parent, db):
@@ -1381,6 +1377,10 @@ class ReportsTab(ttk.Frame):
             total = sum(r["amount"] or 0 for r in rows)
             return f"Общая задолженность: {total:.2f} руб."
 
+        if report["method"] == "report_stock_balances":
+            total = sum(r["stock"] or 0 for r in rows)
+            return f"Всего позиций: {len(rows)}, общий остаток: {total} ед."
+
         return ""
 
 class App(Tk):
@@ -1430,13 +1430,9 @@ class Database:
         self.connection.autocommit = False
 
     def query(self, sql, params=None):
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(sql, params)
-                return cursor.fetchall()
-        except Exception:
-            self.connection.rollback()
-            raise
+        with self.connection.cursor() as cursor:
+            cursor.execute(sql, params)
+            return cursor.fetchall()
 
     def execute(self, sql, params=None):
         try:
@@ -1720,9 +1716,6 @@ class Database:
     def unlink_pet_from_client(self, client_id, pet_id):
         self.execute("DELETE FROM Client_pet WHERE client_id = %s AND pet_id = %s", (client_id, pet_id))
 
-    def create_appointment(self, pet_id, client_id, employee_id, appointment_date):
-        self.insert("Appointments", pet_id=pet_id, client_id=client_id, employee_id=employee_id, appointment_date=appointment_date, status="запланирован")
-
     def update_appointment_status(self, appointment_id, status):
         self.execute("UPDATE Appointments SET status = %s WHERE appointment_id = %s", (status, appointment_id))
 
@@ -1842,6 +1835,19 @@ class Database:
             LEFT JOIN Clients ON Payments.client_id = Clients.client_id
             WHERE Payments.status = 'не оплачен'
             ORDER BY Appointments.appointment_date DESC
+        """
+        return self.query(sql)
+
+    def report_stock_balances(self):
+        sql = """
+            SELECT
+                Medicines.name,
+                Suppliers.company_name AS supplier,
+                Medicines.stock,
+                Medicines.unit
+            FROM Medicines
+            LEFT JOIN Suppliers USING(supplier_id)
+            ORDER BY Medicines.stock ASC, Medicines.name
         """
         return self.query(sql)
 

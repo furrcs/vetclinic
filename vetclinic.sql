@@ -35,8 +35,6 @@ CREATE TABLE Employees (
     third_name VARCHAR(30),
     phone VARCHAR(20) NOT NULL UNIQUE,
     email VARCHAR(100),
-    username VARCHAR(50) UNIQUE,
-    password VARCHAR(255),
     role VARCHAR(20) NOT NULL
 );
 
@@ -53,9 +51,10 @@ CREATE TABLE Pets (
     pet_id SERIAL PRIMARY KEY,
     breed_id INT REFERENCES Breeds(breed_id) ON DELETE SET NULL,
     name VARCHAR(100) NOT NULL,
-    gender VARCHAR(10) NOT NULL CHECK (gender IN ('самец', 'самка')),
+    gender VARCHAR(10) NOT NULL,
     color VARCHAR(50),
-    birth_date DATE
+    birth_date DATE,
+    CHECK (gender IN ('самец', 'самка'))
 );
 
 CREATE TABLE Client_pet (
@@ -71,9 +70,7 @@ CREATE TABLE Appointments (
     employee_id INT REFERENCES Employees(employee_id) ON DELETE SET NULL,
     appointment_date TIMESTAMP NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'запланирован',
-    CHECK (
-        status IN ('запланирован', 'завершён', 'отменён')
-    )
+    CHECK (status IN ('запланирован', 'завершён', 'отменён'))
 );
 
 CREATE TABLE Medical_records (
@@ -113,9 +110,11 @@ CREATE TABLE Payments (
     appointment_id INT REFERENCES Appointments(appointment_id),
     payment_date TIMESTAMP,
     payment_method VARCHAR(20),
-    amount DECIMAL(10,2) NOT NULL CHECK (amount >= 0),
-    status VARCHAR(20) NOT NULL CHECK (status IN ('не оплачен', 'оплачен')),
-    UNIQUE (appointment_id)
+    amount DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    UNIQUE (appointment_id),
+    CHECK (amount >= 0),
+    CHECK (status IN ('не оплачен', 'оплачен'))
 );
 
 
@@ -166,13 +165,13 @@ INSERT INTO Medicines (supplier_id, name, price, unit, stock) VALUES
 (4, 'Витамины VetLife',        550.00, 'флакон 50 мл',    50),
 (4, 'Шампунь лечебный',        780.00, 'бутылка 250 мл',  12);
 
-INSERT INTO Employees (name, surname, third_name, phone, email, username, password, role) VALUES
-('Ольга',     'Иванова',  'Петровна',     '+7-901-100-10-10', 'ivanova@vetclinic.ru', 'ivanova',  'hashed_pwd_1', 'admin'),
-('Дмитрий',   'Соколов',  'Андреевич',    '+7-901-200-20-20', 'sokolov@vetclinic.ru', 'sokolov',  'hashed_pwd_2', 'doctor'),
-('Екатерина', 'Морозова', 'Сергеевна',    '+7-901-300-30-30', 'morozova@vetclinic.ru','morozova', 'hashed_pwd_3', 'doctor'),
-('Артём',     'Кузнецов', 'Игоревич',     '+7-901-400-40-40', 'kuznetsov@vetclinic.ru','kuznetsov','hashed_pwd_4', 'assistant'),
-('Мария',     'Попова',   'Владимировна', '+7-901-500-50-50', 'popova@vetclinic.ru',  'popova',   'hashed_pwd_5', 'receptionist'),
-('Игорь',     'Лебедев',  NULL,           '+7-901-600-60-60', NULL,                   'lebedev',  'hashed_pwd_6', 'doctor');
+INSERT INTO Employees (name, surname, third_name, phone, email, role) VALUES
+('Ольга',     'Иванова',  'Петровна',     '+7-901-100-10-10', 'ivanova@vetclinic.ru', 'admin'),
+('Дмитрий',   'Соколов',  'Андреевич',    '+7-901-200-20-20', 'sokolov@vetclinic.ru', 'doctor'),
+('Екатерина', 'Морозова', 'Сергеевна',    '+7-901-300-30-30', 'morozova@vetclinic.ru', 'doctor'),
+('Артём',     'Кузнецов', 'Игоревич',     '+7-901-400-40-40', 'kuznetsov@vetclinic.ru', 'assistant'),
+('Мария',     'Попова',   'Владимировна', '+7-901-500-50-50', 'popova@vetclinic.ru', 'receptionist'),
+('Игорь',     'Лебедев',  NULL,           '+7-901-600-60-60', NULL, 'doctor');
 
 INSERT INTO Clients (name, surname, third_name, phone, email) VALUES
 ('Анна',     'Петрова',  'Ивановна',     '+7-910-101-01-01', 'anna.p@mail.ru'),
